@@ -11,3 +11,10 @@ python:3.11.13
 torch:2.8.0+cu128
 
 正在全力编写中~
+
+参考仓库:
+[Bert4pytorch](https://github.com/MuQiuJun-AI/bert4pytorch/)
+
+[Bert4keras](https://github.com/bojone/bert4keras/)
+
+[PassBertStengthMeter-1](https://github.com/Ming-Xu-research/PassBertStrengthMeter-1) (PassBert的官方实现)
