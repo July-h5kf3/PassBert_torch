@@ -16,6 +16,8 @@ torch:2.8.0+cu128
 
 9.28：完成了passbert中的PasswordTokenize
 
+9.29:完成了Passbert模型部分的初步搭建
+
 参考仓库:
 
 [Bert4pytorch](https://github.com/MuQiuJun-AI/bert4pytorch/)
