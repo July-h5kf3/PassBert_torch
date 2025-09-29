@@ -12,6 +12,10 @@ torch:2.8.0+cu128
 
 正在全力编写中~
 
+更新日志：
+
+9.28：完成了passbert中的PasswordTokenize
+
 参考仓库:
 
 [Bert4pytorch](https://github.com/MuQiuJun-AI/bert4pytorch/)

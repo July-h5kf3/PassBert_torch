@@ -12,20 +12,20 @@ def load_vocab(dict_path,encoding = "utf-8",simplified = False,startwith = None)
             token = token[0] if token else line.strip()
             token_dict[token] = len(token_dict)
     
-    if simplified:
-        new_token_dict,keep_tokens = {},[]
-        startwith = startwith or []
-        for t in startwith:
-            new_token_dict[t] = len(new_token_dict)
-            keep_tokens.append(token_dict[t])
+    # if simplified:
+    #     new_token_dict,keep_tokens = {},[]
+    #     startwith = startwith or []
+    #     for t in startwith:
+    #         new_token_dict[t] = len(new_token_dict)
+    #         keep_tokens.append(token_dict[t])
 
-        for t,_ in sorted(token_dict.items(),key = lambda s:s[1]):
-            if t not in new_token_dict and not Tokenizer._is_redundant(t):
-                new_token_dict[t] = len(new_token_dict)
-                keep_tokens.append(token_dict[t])
-        return new_token_dict,keep_tokens
-    else:
-        return token_dict
+    #     for t,_ in sorted(token_dict.items(),key = lambda s:s[1]):
+    #         if t not in new_token_dict and not Tokenizer._is_redundant(t):
+    #             new_token_dict[t] = len(new_token_dict)
+    #             keep_tokens.append(token_dict[t])
+    #     return new_token_dict,keep_tokens
+    # else:
+    return token_dict
 
 def save_vocab(dict_path,token_dict,encoding = 'utf-8'):
     """保存词典"""
