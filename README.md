@@ -14,9 +14,11 @@ torch:2.8.0+cu128
 
 更新日志：
 
-9.28：完成了passbert中的PasswordTokenize
+9.28：完成了passbert中的PasswordTokenize(测试无问题)
 
 9.29:完成了Passbert模型部分的初步搭建
+
+9.30:完成了pretrain部分的数据集构建，暂时为测试
 
 参考仓库:
 
