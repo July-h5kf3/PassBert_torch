@@ -8,7 +8,7 @@ import sys
 from tqdm import tqdm
 from torch.utils.data import Dataset
 import re
-from passbert.tokenizers import PasswordTokenizer
+from passbert.PasswordTokenizer import PasswordTokenizer
 from passbert.snippets import parallel_apply
 
 class TrainingDataset(Dataset):
