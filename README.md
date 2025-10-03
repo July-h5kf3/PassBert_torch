@@ -20,6 +20,8 @@ torch:2.8.0+cu128
 
 9.30:完成了pretrain部分的数据集构建，暂时为测试
 
+10.3:完成了pretrain部分的数据集构造的测试，目前process_data可以处理出满足需求的token_id以及mask序列，可以使用根目录下的test_passwords.txt进行测试
+
 参考仓库:
 
 [Bert4pytorch](https://github.com/MuQiuJun-AI/bert4pytorch/)
