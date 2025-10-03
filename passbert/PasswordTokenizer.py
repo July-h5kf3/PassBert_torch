@@ -1,7 +1,10 @@
 import string
 import unicodedata
+import os
+import sys
 import re
-from snippets import truncate_sequences
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from passbert.snippets import truncate_sequences
 
 def load_vocab(dict_path,encoding = "utf-8",simplified = False,startwith = None):
     """加载词典"""
