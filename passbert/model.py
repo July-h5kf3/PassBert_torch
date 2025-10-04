@@ -1,10 +1,12 @@
-import imp
+import importlib
 from turtle import forward
 import torch
 import torch.nn as nn
 import copy
 import json
-from .layers import LayerNorm,MultiHeadAttention,PositionWiseFeedForward,activations
+import sys,os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from passbert.layers import LayerNorm,MultiHeadAttention,PositionWiseFeedForward,activations
 
 class Transformer(nn.Module):
     def __init__(
@@ -24,6 +26,7 @@ class Transformer(nn.Module):
         compound_tokens = None,
         residual_attention_score = False,
         ignore_invalid_weights = False,
+        **kwargs
     ):
         super(Transformer,self).__init__()
         if keep_tokens is not None:
@@ -47,8 +50,10 @@ class Transformer(nn.Module):
         self.position_bias = None
         self.residual_attention_score = residual_attention_score
         self.ignore_invalid_weights = ignore_invalid_weights
+
     def init_model_weights(self,module):
         raise NotImplementedError
+        
     def variable_mapping(self):
         return {}
     def load_weights_from_pytorch_checkpoint(self, checkpoint, mapping=None):
@@ -186,13 +191,11 @@ class Bert(Transformer):
             bert参数初始化,在tf版本中是截断正态分布，torch中使用nn.init.trunc_normal_
             """
             nn.init.trunc_normal_(module.weight,mean = 0.0,std = self.initializer_range,a = -2 * self.initializer_range,b = 2 * self.initializer_range)
-            if module.bias is not None:
+            if hasattr(module, 'bias') and module.bias is not None:
                 nn.init.zeros_(module.bias)
         elif isinstance(module,LayerNorm):
             nn.init.ones_(module.weight)
             nn.init.zeros_(module.bias)
-        if isinstance(module,nn.Linear) and module.bias is not None:
-            module.bias.data.zero_()
     def forward(self,token_ids,segment_ids = None,attention_mask = None,output_all_encoded_layers = False):
 
         if attention_mask is None:
@@ -231,7 +234,7 @@ class Bert(Transformer):
             mlm_scores = None
         
         if mlm_scores is not None and nsp_scores is None:
-            return encoded_layers,pooled_output
+            return mlm_scores
         elif mlm_scores is not None and nsp_scores is not None:
             return mlm_scores,nsp_scores
         elif mlm_scores is not None:

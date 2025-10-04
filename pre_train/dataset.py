@@ -16,8 +16,8 @@ class TrainingDataset(Dataset):
         line = self.lines[index]
         data = json.loads(line)
         return {
-            'token_ids':data['token_ids'],
-            'mask_ids' :data['mask_ids']
+            'token_ids': data['token_ids'],
+            'mask_ids': data['mask_ids']
         }
 
 def mlm_collate_fn(batch,pad_token_id):
