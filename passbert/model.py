@@ -6,7 +6,8 @@ import copy
 import json
 import sys,os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from passbert.layers import LayerNorm,MultiHeadAttention,PositionWiseFeedForward,activations
+from passbert.layers import LayerNorm,MultiHeadAttention,PositionWiseFeedForward,activations,FlashMHA
+from passbert.PasswordTokenizer import get_char_type_ids
 
 class Transformer(nn.Module):
     def __init__(
@@ -92,11 +93,12 @@ class BertEmbeddings(nn.Module):
     embedding层
     构造word,position,token_type embeddings
     """
-    def __init__(self,vocab_size,hidden_size,max_position,segment_vocab_size,drop_rate):
+    def __init__(self,vocab_size,hidden_size,max_position,segment_vocab_size,drop_rate,type_vocab_size = 6):
         super(BertEmbeddings,self).__init__()
         self.word_embeddings = nn.Embedding(vocab_size,hidden_size,padding_idx = 0)
         self.position_embeddings = nn.Embedding(max_position,hidden_size,padding_idx = 0)
         self.segment_embeddings = nn.Embedding(segment_vocab_size,hidden_size)
+        self.type_embeddings = nn.Embedding(type_vocab_size,hidden_size)
 
         self.LayerNorm = LayerNorm(hidden_size,eps = 1e-12)
         self.dropout = nn.Dropout(drop_rate)
@@ -107,12 +109,14 @@ class BertEmbeddings(nn.Module):
         position_ids = position_ids.unsqueeze(0).expand_as(token_ids)
         if segment_ids is not None:
             segment_ids = torch.zeros_like(token_ids)
+        type_ids = get_char_type_ids(token_ids=token_ids)
         
         words_embeddings = self.word_embeddings(token_ids)
         position_embeddings = self.position_embeddings(position_ids)
         segment_embeddings = self.segment_embeddings(segment_ids)
+        type_embeddings = self.type_embeddings(type_ids)
 
-        embeddings = words_embeddings + position_embeddings + segment_embeddings
+        embeddings = words_embeddings + position_embeddings + segment_embeddings + type_embeddings
         embeddings = self.LayerNorm(embeddings)
         embeddings = self.dropout(embeddings)
         return embeddings
@@ -123,7 +127,8 @@ class BertLayer(nn.Module):
     """
     def __init__(self,hidden_size,num_attention_heads,dropout_rate,intermediate_size,hidden_act,is_dropout = False):
         super(BertLayer,self).__init__()
-        self.MHA = MultiHeadAttention(hidden_size,num_attention_heads,dropout_rate)
+        # self.MHA = MultiHeadAttention(hidden_size,num_attention_heads,dropout_rate)
+        self.MHA = FlashMHA(hidden_size,num_attention_heads,dropout_rate)
         self.dropout1 = nn.Dropout(dropout_rate)
         self.layerNorm1 = LayerNorm(hidden_size,eps = 1e-12)
         self.FFN = PositionWiseFeedForward(hidden_size,intermediate_size,hidden_act,is_dropout = is_dropout)
@@ -131,7 +136,8 @@ class BertLayer(nn.Module):
         self.layerNorm2 = LayerNorm(hidden_size,eps = 1e-12)
     
     def forward(self,hidden_states,attention_mask):
-        self_attn_output = self.MHA(hidden_states,hidden_states,hidden_states,attention_mask)
+        # self_attn_output = self.MHA(hidden_states,hidden_states,hidden_states,attention_mask)
+        self_attn_output = self.MHA(hidden_states,attention_mask)
         hidden_states = hidden_states + self.dropout1(self_attn_output)
         hidden_states = self.layerNorm1(hidden_states)
         self_attn_output2 = self.FFN(hidden_states)
@@ -229,7 +235,7 @@ class Bert(Transformer):
             mlm_hidden_states = self.mlmDense(sequence_output)
             mlm_hidden_states = self.transform_act_fn(mlm_hidden_states)
             mlm_hidden_states = self.mlmLayerNorm(mlm_hidden_states)
-            mlm_scores = self.mlmDecoder(mlm_hidden_states)
+            mlm_scores = self.mlmDecoder(mlm_hidden_states)+ self.mlmBias
         else:
             mlm_scores = None
         

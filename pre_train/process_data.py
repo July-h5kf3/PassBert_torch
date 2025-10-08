@@ -5,6 +5,7 @@ import random
 import sys
 from tkinter import W
 import numpy as np
+import math
 from tqdm import tqdm
 import argparse
 import os
@@ -99,10 +100,16 @@ class DataProcessor:
             
 
 class CPGDataProcessor(DataProcessor):
-    def __init__(self,tokenizer,word_segment,mask_rate = 0.5,sequence_length = 512):
+    def __init__(self,tokenizer,word_segment,mask_rate = 0.5,sequence_length = 512,mask_strategy = "WWM"):
+        """
+        新增加了Span Mask的掩词方式，这种方式会连续遮掩，后续考虑增加根据PCFG遮掩的方式
+        """
         super().__init__(tokenizer,sequence_length)
         self.word_segment = word_segment
         self.mask_rate = mask_rate
+        self.mask_strategy = mask_strategy
+        if mask_strategy == "SM":
+            self.max_span_len = 4
         # print(f"CPGDataProcessor record")
     def token_process(self,token_id):
         """
@@ -111,26 +118,56 @@ class CPGDataProcessor(DataProcessor):
         """
         return self.token_mask_id
     def sentence_process(self, text):
+        """单条口令的mask逻辑"""
         words = self.word_segment(text)
-        rands = np.random.random(len(words))
+        n = len(words)
 
-        token_ids,mask_ids = [],[]
-        for rand,word in zip(rands,words):
-            word_tokens = self.tokenizer.tokenize(text = word)[1:-1]
+        mask_flags = np.zeros(n, dtype=bool)
+
+        if self.mask_strategy == "WWM":
+            # ---------- Whole Word Masking ----------
+            rands = np.random.random(n)
+            for i in range(n):
+                if rands[i] < self.mask_rate:
+                    mask_flags[i] = True
+
+        elif self.mask_strategy == "SM":
+            num_to_mask = math.ceil(n * self.mask_rate)
+            if num_to_mask > 0:
+                masked_count = 0
+                candidate_indices = list(range(n))
+                random.shuffle(candidate_indices)
+
+                for start_index in candidate_indices:
+                    if mask_flags[start_index]:
+                        continue
+                    span_len = random.randint(1, self.max_span_len)
+                    actual_span_len = 0
+                    for i in range(start_index, min(start_index + span_len, n)):
+                        if not mask_flags[i]:
+                            mask_flags[i] = True
+                            actual_span_len += 1
+                    masked_count += actual_span_len
+                    if masked_count >= num_to_mask:
+                        break
+
+        else:
+            raise ValueError(f"Unsupported mask strategy: {self.mask_strategy}")
+
+        # ---------- 生成 token_ids / mask_ids ----------
+        token_ids, mask_ids = [], []
+        for word, is_mask in zip(words, mask_flags):
+            word_tokens = self.tokenizer.tokenize(word)[1:-1]
             word_token_ids = self.tokenizer.tokens_to_ids(word_tokens)
-            #可以通过下面的语句进行调试
-            # print(f"[TrainingDatasetRoberta::sentence_process]: word = {word}, word_tokens = {word_tokens}, word_token_ids = {word_token_ids}")
             token_ids.extend(word_token_ids)
 
-            if rand < self.mask_rate:
-                word_mask_ids = [
-                    self.token_process(i) + 1 for i in word_token_ids
-                ]
+            if is_mask:
+                word_mask_ids = [self.token_process(i) for i in word_token_ids]
             else:
-                word_mask_ids = [0] * len(word_tokens)
-            
+                word_mask_ids = [0] * len(word_token_ids)
             mask_ids.extend(word_mask_ids)
-        return [token_ids,mask_ids]
+
+        return [token_ids, mask_ids]
     def paragraph_process(self, texts):
         starts = [self.token_cls_id, 0]
         ends = [self.token_sep_id, 0]
@@ -191,6 +228,7 @@ def main(args):
     processor_args = {
         'word_segment':word_segment,
         'sequence_length':args.seq_len,
+        'mask_strategy':args.mask_strategy,
         # 'must_concat':args.must_concat,
     }
     if args.model == 'roberta' or args.model == 'cpg':
@@ -222,6 +260,7 @@ if __name__ == "__main__":
     cli.add_argument("-d", '--dup-factor', type=int, dest='dup_factor', default=1)
     cli.add_argument('-n', '--num-samples', type=int, default=1000000000)
     cli.add_argument('-s', '--save-record', required=True, type=str, help='save processed data to a .jsonl file')
+    cli.add_argument('-a', '--mask-strategy',required=True,default="SM",type=str,choices=['SM','WWM'])
     cli.add_argument('--must-concat', action='store_true')
     args = cli.parse_args()
     main(args)

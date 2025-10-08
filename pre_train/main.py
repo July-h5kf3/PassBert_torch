@@ -10,7 +10,7 @@ import torch.nn.functional as  F
 from torch.utils.data import DataLoader
 from torch.optim import AdamW
 from torch.optim.lr_scheduler import LambdaLR
-from torch.cuda.amp import autocast, GradScaler
+from torch.amp import autocast, GradScaler
 
 def get_memory_usage():
     """获取当前内存使用情况"""
@@ -135,7 +135,7 @@ def main():
             is_masked = batch['is_masked'].to(device)
 
             # 使用混合精度训练
-            with autocast():
+            with autocast(device_type='cuda', dtype=torch.float16): 
                 output = model(
                     token_ids = input_tokens,
                     segment_ids = input_segments,

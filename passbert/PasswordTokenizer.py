@@ -3,6 +3,7 @@ import unicodedata
 import os
 import sys
 import re
+import torch
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from passbert.snippets import truncate_sequences
 
@@ -29,6 +30,8 @@ def load_vocab(dict_path,encoding = "utf-8",simplified = False,startwith = None)
     #     return new_token_dict,keep_tokens
     # else:
     return token_dict
+
+
 
 def save_vocab(dict_path,token_dict,encoding = 'utf-8'):
     """保存词典"""
@@ -173,7 +176,8 @@ class PasswordTokenizer(TokenizerBase):
         return self.token_dict_inv[id]
     
     def _decode_list(self,ids):
-        tokens = self._decode_list(ids)
+        # tokens = self._decode_list(ids)
+        tokens = self.ids_to_tokens(ids)    
         tokens = tokens[1:-1]
         return "".join(tokens)
     
@@ -196,4 +200,20 @@ class PasswordTokenizer(TokenizerBase):
                 start = end
         return tokens
 
+def get_char_type_ids(token_ids):
+    lower_range = (0,25)
+    upper_range = (26,51)
+    digit_range = (52,61)
+
+    type_ids = torch.full_like(token_ids, 4)
+    type_ids[(token_ids >= lower_range[0]) & (token_ids <= lower_range[1])] = 1 # LOWER
+    type_ids[(token_ids >= upper_range[0]) & (token_ids <= upper_range[1])] = 2 # UPPER
+    type_ids[(token_ids >= digit_range[0]) & (token_ids <= digit_range[1])] = 3 # DIGIT
+    type_ids[token_ids == 94] = 0 # PAD
+    type_ids[token_ids == 95] = 5 # UNK
+    type_ids[token_ids == 96] = 5 # MASK
+    type_ids[token_ids == 97] = 5 # S
+    type_ids[token_ids == 98] = 5 # E
+
+    return type_ids
     

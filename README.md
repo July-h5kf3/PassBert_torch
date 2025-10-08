@@ -25,11 +25,15 @@ torch:2.8.0+cu128
 
 10.4:目前已经完成了所有训练流程的迁移，可以正常进行训练，但是可能存在一些Bug，需要进行一系列调试
 
+10.8:修复了一些小Bug，增加了Type_Embedding,Span Mask掩码,以及FlashAttention
+
 ### Todo List
 
-- [ ] attention改为flashatten
+- [x] attention改为flashatten
 
 - [ ] 写一个训练效果优劣的metric
+
+- [ ] 将Span Mask结合WWM做针对口令问题的调整，加入PCFG，例如Password1！,那么其PCFG格式为L8D1S1，在这个层面我们使用WWM级别的掩码方式，假设我们选择掩饰L8那么在L8中我们使用SM的方式进行掩码
 
 参考仓库:
 

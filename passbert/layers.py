@@ -109,6 +109,46 @@ class MultiHeadAttention(nn.Module):
             return self.o(context_layer),attention_probs
         else:
             return self.o(context_layer)
+        
+class FlashMHA(nn.Module):
+    def __init__(
+            self,
+            hidden_size,
+            num_attention_heads,
+            dropout_rate,
+    ):
+        super().__init__()
+        assert hidden_size % num_attention_heads == 0
+        self.hidden_size = hidden_size
+        self.num_attention_heads = num_attention_heads
+        self.attention_head_size = hidden_size // num_attention_heads
+        self.dropout_rate = dropout_rate
+        self.qkv = nn.Linear(hidden_size, hidden_size * 3)
+        self.o = nn.Linear(hidden_size, hidden_size)
+    
+    def forward(self,x,attention_mask = None):
+        B, T, C = x.shape # Batch size, seqlen, hidden_size
+        q, k, v = self.qkv(x).split(self.hidden_size, dim=2)
+
+        q = q.view(B, T, self.num_attention_heads, self.attention_head_size).transpose(1, 2)
+        k = k.view(B, T, self.num_attention_heads, self.attention_head_size).transpose(1, 2)
+        v = v.view(B, T, self.num_attention_heads, self.attention_head_size).transpose(1, 2)
+
+        if attention_mask is not None:
+             attn_mask = (attention_mask == 0).unsqueeze(1).unsqueeze(2) # (B, 1, 1, T)
+        else:
+             attn_mask = None
+        context = F.scaled_dot_product_attention(
+            q, k, v, 
+            attn_mask=attn_mask, 
+            dropout_p=self.dropout_rate if self.training else 0,
+            is_causal=False # Set to True for decoder-style causal masking
+        )
+        context = context.transpose(1, 2).contiguous().view(B, T, C)
+        output = self.o(context)
+        return output
+
+
 class PositionWiseFeedForward(nn.Module):
     def __init__(self,hidden_size,intermediate_size,dropout_rate = 0.5,hidden_act = "gelu",is_dropout = True):
         super(PositionWiseFeedForward,self).__init__()
