@@ -111,42 +111,41 @@ class MultiHeadAttention(nn.Module):
             return self.o(context_layer)
         
 class FlashMHA(nn.Module):
-    def __init__(
-            self,
-            hidden_size,
-            num_attention_heads,
-            dropout_rate,
-    ):
+    def __init__(self, hidden_size, num_attention_heads, dropout_rate):
         super().__init__()
         assert hidden_size % num_attention_heads == 0
         self.hidden_size = hidden_size
         self.num_attention_heads = num_attention_heads
-        self.attention_head_size = hidden_size // num_attention_heads
+        self.head_dim = hidden_size // num_attention_heads
         self.dropout_rate = dropout_rate
         self.qkv = nn.Linear(hidden_size, hidden_size * 3)
         self.o = nn.Linear(hidden_size, hidden_size)
-    
-    def forward(self,x,attention_mask = None):
-        B, T, C = x.shape # Batch size, seqlen, hidden_size
-        q, k, v = self.qkv(x).split(self.hidden_size, dim=2)
 
-        q = q.view(B, T, self.num_attention_heads, self.attention_head_size).transpose(1, 2)
-        k = k.view(B, T, self.num_attention_heads, self.attention_head_size).transpose(1, 2)
-        v = v.view(B, T, self.num_attention_heads, self.attention_head_size).transpose(1, 2)
+    def forward(self, x, attention_mask=None):
+        B, T, C = x.shape
+        # [B, T, 3, num_heads, head_dim]
+        qkv = (
+            self.qkv(x)
+            .reshape(B, T, 3, self.num_attention_heads, self.head_dim)
+            .permute(2, 0, 3, 1, 4)
+        )
+        q, k, v = qkv[0], qkv[1], qkv[2]  # (B, H, T, D)
 
         if attention_mask is not None:
-             attn_mask = (attention_mask == 0).unsqueeze(1).unsqueeze(2) # (B, 1, 1, T)
+            # 1=keep, 0=mask
+            attn_mask = (attention_mask == 0).unsqueeze(1).unsqueeze(2)
+            attn_mask = attn_mask.expand(-1, self.num_attention_heads, T, -1)
         else:
-             attn_mask = None
+            attn_mask = None
+
         context = F.scaled_dot_product_attention(
-            q, k, v, 
-            attn_mask=attn_mask, 
-            dropout_p=self.dropout_rate if self.training else 0,
-            is_causal=False # Set to True for decoder-style causal masking
+            q, k, v,
+            attn_mask=attn_mask,
+            dropout_p=self.dropout_rate if self.training else 0.0,
+            is_causal=False
         )
-        context = context.transpose(1, 2).contiguous().view(B, T, C)
-        output = self.o(context)
-        return output
+        out = context.transpose(1, 2).contiguous().view(B, T, C)
+        return self.o(out)
 
 
 class PositionWiseFeedForward(nn.Module):

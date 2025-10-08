@@ -127,8 +127,8 @@ class BertLayer(nn.Module):
     """
     def __init__(self,hidden_size,num_attention_heads,dropout_rate,intermediate_size,hidden_act,is_dropout = False):
         super(BertLayer,self).__init__()
-        # self.MHA = MultiHeadAttention(hidden_size,num_attention_heads,dropout_rate)
-        self.MHA = FlashMHA(hidden_size,num_attention_heads,dropout_rate)
+        self.MHA = MultiHeadAttention(hidden_size,num_attention_heads,dropout_rate)
+        # self.MHA = FlashMHA(hidden_size,num_attention_heads,dropout_rate)
         self.dropout1 = nn.Dropout(dropout_rate)
         self.layerNorm1 = LayerNorm(hidden_size,eps = 1e-12)
         self.FFN = PositionWiseFeedForward(hidden_size,intermediate_size,hidden_act,is_dropout = is_dropout)
@@ -136,8 +136,8 @@ class BertLayer(nn.Module):
         self.layerNorm2 = LayerNorm(hidden_size,eps = 1e-12)
     
     def forward(self,hidden_states,attention_mask):
-        # self_attn_output = self.MHA(hidden_states,hidden_states,hidden_states,attention_mask)
-        self_attn_output = self.MHA(hidden_states,attention_mask)
+        self_attn_output = self.MHA(hidden_states,hidden_states,hidden_states,attention_mask)
+        # self_attn_output = self.MHA(hidden_states,attention_mask)
         hidden_states = hidden_states + self.dropout1(self_attn_output)
         hidden_states = self.layerNorm1(hidden_states)
         self_attn_output2 = self.FFN(hidden_states)
