@@ -35,6 +35,8 @@ torch:2.8.0+cu128
 
 - [ ] 将Span Mask结合WWM做针对口令问题的调整，加入PCFG，例如Password1！,那么其PCFG格式为L8D1S1，在这个层面我们使用WWM级别的掩码方式，假设我们选择掩饰L8那么在L8中我们使用SM的方式进行掩码
 
+- [ ] KL,SinglePassword,PassSim,理论最优
+
 参考仓库:
 
 [Bert4pytorch](https://github.com/MuQiuJun-AI/bert4pytorch/)
